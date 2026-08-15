@@ -4,6 +4,6 @@
 
 pytest==9.1.1
 pytest-django==4.11.1
-gunicorn==23.0.0   # bench.py measures against a real WSGI server, not runserver
+gunicorn==26.0.0   # bench.py measures against a real WSGI server, not runserver
 httpx==0.28.1      # bench.py HTTP client
 ruff==0.16.3       # linting
