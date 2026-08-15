@@ -1,0 +1,191 @@
+{% extends "deals/base.html" %}
+
+{% block title %}
+  {% if result %}{{ result.query.brand }} — Deal Search{% else %}Deal Search{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<form class="search" method="get" action="/">
+  <div class="field">
+    <label for="brand">Brand</label>
+    <input type="text" id="brand" name="brand" value="{{ brand }}"
+           placeholder="Zomato" maxlength="80" autocomplete="off" autofocus>
+    {% if errors.brand %}<p class="field-error">{{ errors.brand }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="amount">Amount ({{ currency }})</label>
+    <input type="number" id="amount" name="amount" value="{{ amount }}"
+           placeholder="1200" step="0.01" min="0.01" inputmode="decimal">
+    {% if errors.amount %}<p class="field-error">{{ errors.amount }}</p>{% endif %}
+  </div>
+  <button type="submit">Find the cheapest way to pay</button>
+</form>
+
+{% if not submitted %}
+  <section class="examples">
+    <h2>Try one of these</h2>
+    <ul>
+      {% for name, value, note in examples %}
+        <li>
+          <a href="/?brand={{ name|urlencode }}&amount={{ value }}">
+            {{ name }} @ {{ value }}
+          </a>
+          <span class="note">{{ note }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if result %}
+  {% with best=result.bestPick %}
+
+  <section class="summary">
+    <h1>
+      {{ result.query.brand }}
+      <span class="muted">· {{ currency }} {{ result.query.amount|floatformat:2 }}</span>
+    </h1>
+    <p class="tags">
+      {% if result.query.category %}<span class="tag">{{ result.query.category }}</span>{% endif %}
+      <span class="tag">{{ result.count }} usable deal{{ result.count|pluralize }}</span>
+      <span class="tag {% if meta.cacheHit %}tag-hit{% endif %}">
+        {% if meta.cacheHit %}cache hit{% else %}cache miss{% endif %}
+      </span>
+      <span class="tag">{{ meta.latencyMs }} ms</span>
+    </p>
+  </section>
+
+  {% if best %}
+    <section class="best {% if meta.strategy == 'best_card_fallback' %}best-fallback{% endif %}">
+      <p class="eyebrow">
+        {% if meta.strategy == 'best_card_fallback' %}
+          No deal applies — best card for this spend
+        {% else %}
+          Best pick
+        {% endif %}
+      </p>
+      <h2>{{ best.title }}</h2>
+      <div class="figures">
+        <div class="figure">
+          <span class="label">You pay</span>
+          <span class="value">{{ currency }} {{ best.price|floatformat:2 }}</span>
+        </div>
+        <div class="figure">
+          <span class="label">Reward back</span>
+          <span class="value">− {{ currency }} {{ best.rewardValue|floatformat:2 }}</span>
+        </div>
+        <div class="figure figure-primary">
+          <span class="label">Effective cost</span>
+          <span class="value">{{ currency }} {{ best.effectivePrice|floatformat:2 }}</span>
+        </div>
+        <div class="figure">
+          <span class="label">You save</span>
+          <span class="value">
+            {{ currency }} {{ best.totalSavings|floatformat:2 }}
+            <small>({{ best.savingsPct|floatformat:1 }}%)</small>
+          </span>
+        </div>
+      </div>
+      {% if best.payWith %}
+        <p class="paywith">
+          Pay with <strong>{{ best.payWith.cardName }}</strong>
+          ({{ best.payWith.network }}) at {{ best.payWith.rewardRate|floatformat:"-2" }}%
+          {% if best.payWith.rewardCapped %}<span class="tag tag-warn">reward capped</span>{% endif %}
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% if result.results %}
+    <section>
+      <h2 class="section-title">All matching deals</h2>
+      <table class="results">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Deal</th>
+            <th>Source</th>
+            <th class="num">Headline</th>
+            <th class="num">You pay</th>
+            <th class="num">Reward</th>
+            <th class="num">Effective</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for deal in result.results %}
+            <tr {% if forloop.first %}class="row-best"{% endif %}>
+              <td class="num">{{ deal.rank }}</td>
+              <td>
+                <span class="deal-title">{{ deal.title }}</span>
+                {% if deal.feeds|length > 1 %}
+                  <span class="tag tag-quiet" title="reported by both feeds">merged</span>
+                {% endif %}
+              </td>
+              <td><span class="source source-{{ deal.source }}">{{ deal.source }}</span></td>
+              <td class="num">{{ deal.discountPct|floatformat:"-2" }}%</td>
+              <td class="num">{{ deal.price|floatformat:2 }}</td>
+              <td class="num">
+                {{ deal.rewardValue|floatformat:2 }}
+                {% if deal.payWith %}<small>{{ deal.payWith.cardName }}</small>{% endif %}
+              </td>
+              <td class="num strong">{{ deal.effectivePrice|floatformat:2 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="caption">
+        Sorted by effective price, not headline discount — the two orderings
+        often disagree.
+      </p>
+    </section>
+  {% endif %}
+
+  {% if result.excluded %}
+    <section class="excluded">
+      <h2 class="section-title">Not usable at this amount</h2>
+      <ul>
+        {% for item in result.excluded %}
+          <li>
+            {{ item.title }}
+            <span class="muted">
+              — needs {{ currency }} {{ item.minSpend|floatformat:2 }} minimum
+            </span>
+            <a class="nudge"
+               href="/?brand={{ result.query.brand|urlencode }}&amount={{ item.minSpend|floatformat:2 }}">
+              try at that amount
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% endwith %}
+{% endif %}
+
+{% if recent %}
+  <section class="recent">
+    <h2 class="section-title">Recent searches</h2>
+    <ul>
+      {% for item in recent %}
+        <li>
+          <a href="/?brand={{ item.brand|urlencode }}&amount={{ item.amount|floatformat:2 }}">
+            {{ item.brand }} @ {{ item.amount|floatformat:2 }}
+          </a>
+          <span class="muted">
+            {% if item.best_pick_title %}
+              {{ item.best_pick_title|truncatechars:44 }}
+              · {{ currency }} {{ item.best_pick_effective_price|floatformat:2 }}
+            {% else %}no result{% endif %}
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="caption">
+      Full history with cursor pagination at <a href="/searches">/searches</a>.
+    </p>
+  </section>
+{% endif %}
+
+{% endblock %}

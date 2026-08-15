@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Django
+*.db
+*.db-wal
+*.db-shm
+staticfiles/
+media/
+.env
+.env.*
+!.env.example
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.vercel/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,8 @@
+Django==6.1
+djangorestframework==3.18.0
+whitenoise==6.12.0
+dj-database-url==3.1.2
+
+# Needed only when DATABASE_URL points at Postgres. Adds ~2 MB compressed to
+# the serverless bundle; drop this line for a SQLite-only demo deploy.
+psycopg[binary]==3.3.4

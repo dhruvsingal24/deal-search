@@ -1,0 +1,16 @@
+# Nothing here is imported at runtime, so it only inflates the bundle.
+deals/tests/
+pytest.ini
+requirements-dev.txt
+ruff.toml
+bench.py
+docs/
+.github/
+.gitignore
+.env.example
+.ruff_cache/
+__pycache__/
+*.db
+*.db-wal
+*.db-shm
+staticfiles/

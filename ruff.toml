@@ -1,0 +1,23 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "DJ", "C4", "SIM"]
+ignore = [
+    "E501",    # line length is handled by the formatter
+    "B008",    # DRF/Django idiom: callables in defaults
+    "SIM108",  # ternaries are not always clearer
+    # NULL is meaningful on bonus_category / best_pick_title: "this card has no
+    # bonus category" is a different fact from "the bonus category is an empty
+    # string", and the ranking engine reads it as absence.
+    "DJ001",
+]
+
+[lint.per-file-ignores]
+"*/migrations/*" = ["E501", "I001"]
+"deals/tests/*" = ["B011"]
+"config/settings.py" = ["E402"]  # settings intentionally import mid-file
+"api/index.py" = ["E402"]        # sys.path must be set before Django imports
+
+[lint.isort]
+known-first-party = ["config", "deals"]

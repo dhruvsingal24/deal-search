@@ -1,0 +1,40 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Deal Search{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'deals/app.css' %}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>%F0%9F%8F%B7</text></svg>">
+</head>
+<body>
+  <header class="masthead">
+    <a class="wordmark" href="/">Deal&nbsp;Search</a>
+    <nav>
+      <a href="/health">health</a>
+      <a href="/cards">cards</a>
+      <a href="/searches">history</a>
+      <a href="/stats">stats</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>
+      Ranked by <strong>effective price</strong> — amount minus the deal discount
+      minus the reward earned on what's left. Card names and reward rates are
+      fictional sample data.
+    </p>
+    {% if ephemeral_database %}
+      <p class="warn">
+        Running on an ephemeral filesystem: this database lives in <code>/tmp</code>
+        and is discarded when the instance recycles. Set <code>DATABASE_URL</code>
+        for durable storage.
+      </p>
+    {% endif %}
+  </footer>
+</body>
+</html>
