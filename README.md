@@ -121,7 +121,7 @@ Every currency and rate field is a `DecimalField`, and the ranking engine works 
 
 | Path | Purpose |
 |---|---|
-| `.github/workflows/ci.yml` | Lint and formatting, Django checks, a missing-migration check, the `deals/tests/` suite (both `manage.py test` and `pytest`, across Python 3.11–3.13), `smoke.py`, and a simulated Vercel cold start. |
+| `.github/workflows/ci.yml` | Lint and formatting, Django checks, a missing-migration check, the `deals/tests/` suite (both `manage.py test` and `pytest`, across Python 3.12–3.13 — Django 6.1 requires 3.12+), `smoke.py`, and a simulated Vercel cold start. |
 | `.github/dependabot.yml` | Weekly pip updates (patches grouped into one PR), monthly Actions. |
 | `.github/pull_request_template.md` | Includes a ranking-specific checklist, since that is the part where a regression is hardest to spot in review. |
 | `ruff.toml` | Lint and format config. The seed data tables are `# fmt: off` — one row per line is the point of them. |
