@@ -23,7 +23,7 @@ curl -s localhost:8000/deals/search \
 
 Open <http://localhost:8000/> for the web frontend, or use the JSON API directly.
 
-Verify: `python smoke.py`. Lint: `ruff check .`
+Verify: `python -m pytest` (unit tests) and `python smoke.py` (end-to-end). Lint: `ruff check .`
 
 ---
 
@@ -121,16 +121,17 @@ Every currency and rate field is a `DecimalField`, and the ranking engine works 
 
 | Path | Purpose |
 |---|---|
-| `.github/workflows/ci.yml` | Lint and formatting, Django checks, a missing-migration check, `smoke.py`, and a simulated Vercel cold start. |
+| `.github/workflows/ci.yml` | Lint and formatting, Django checks, a missing-migration check, the `deals/tests/` suite (both `manage.py test` and `pytest`, across Python 3.12–3.13 — Django 6.1 requires 3.12+), `smoke.py`, and a simulated Vercel cold start. |
 | `.github/dependabot.yml` | Weekly pip updates (patches grouped into one PR), monthly Actions. |
 | `.github/pull_request_template.md` | Includes a ranking-specific checklist, since that is the part where a regression is hardest to spot in review. |
 | `ruff.toml` | Lint and format config. The seed data tables are `# fmt: off` — one row per line is the point of them. |
 | `.env.example` | Copy to `.env`; the real file is gitignored. |
 | `docs/card-selection.md` | Design note on the card-selection algorithm. |
 
-With no unit tests in this build, **`smoke`** is the job that matters: it boots
-the real WSGI stack and asserts ranking, fallbacks, validation, idempotency,
-pagination and the frontend. **`deploy-check`** imports the serverless entry
+The `test` job covers the ranking arithmetic, idempotency and pagination in
+isolation; **`smoke`** sits on top of it as end-to-end cover, booting the real
+WSGI stack so it catches broken settings and routing that unit tests pass
+right over. **`deploy-check`** imports the serverless entry
 point under Vercel's environment variables and asserts the cold start serves a
 request and that `ALLOWED_HOSTS` is not `*`. `makemigrations --check` is wired
 in too, because a model change committed without its migration is otherwise
@@ -354,31 +355,52 @@ Benchmark against gunicorn, not `runserver` — the dev server is single-threade
 
 ## Verification
 
-This build ships without a unit test suite. `smoke.py` replaces it: it boots the
-real WSGI stack and asserts the behaviour that breaks silently.
+Two layers, run by CI and meant to be run together.
+
+### Unit and integration tests — `deals/tests/`
+
+```bash
+python -m pytest         # 80 tests
+```
+
+- `test_ranking.py` — the arithmetic in isolation, as `SimpleTestCase` against
+  plain `SimpleNamespace` objects (no database): discount capping, rounding
+  half-up not bankers', the price/discount reconciliation, reward caps and
+  bonus-category rates, tie-break order, and both fallback triggers.
+- `test_search.py` — the API: ranking by effective price over headline
+  discount, brand-key normalisation, min-spend exclusion, validation
+  (including "every problem in one response"), the cache (hit/miss, cache
+  key includes the amount, a write invalidates it), and the supporting
+  endpoints.
+- `test_idempotency.py` — replay returns the stored response and writes no
+  second history row, a changed body on the same key is a 409, keys are
+  scoped per endpoint, and `POST /deals`'s `dedupe_key` no-ops a keyless
+  retry.
+- `test_pagination.py` — the cursor walks every row exactly once, terminates
+  cleanly on an exact multiple of the page size, doesn't shift when a row is
+  inserted mid-walk, and the two-feed merge/dedupe conflict rules.
+- `test_frontend.py` — the HTML page uses the same `cached_search` +
+  `record_search` pipeline as the JSON API, plus the Vercel cold-start
+  bootstrap.
+
+### End-to-end smoke test — `smoke.py`
 
 ```bash
 python smoke.py                # 13 checks against the app
 python smoke.py --cold-start   # simulates a Vercel cold start
 ```
 
-It covers effective-price ranking (the 10% Amazon deal must beat the 15% one),
-both best-card fallback triggers, 422 validation including unknown fields,
-idempotent replay writing exactly one history row, 409 on key reuse with a
-different body, cursor pagination and malformed cursors, and that the frontend
-and stylesheet render. It exits non-zero on the first failure, so it works as a
-CI gate and a pre-deploy check, and it is safe to re-run against the same
-database.
+Boots the real WSGI stack — not the Django test client — and asserts the
+behaviour that breaks silently: effective-price ranking, both best-card
+fallback triggers, 422 validation, idempotent replay and 409 conflict,
+cursor pagination, and that the frontend and stylesheet render. It exits
+non-zero on the first failure, so it doubles as a pre-deploy check, and it's
+safe to re-run against the same database.
 
-I verified it catches real regressions rather than just passing: reversing the
-sort to rank by headline discount instead of effective price makes it fail.
-
-**What you give up without the test suite.** `smoke.py` checks the service
-end to end; it does not check the ranking arithmetic in isolation. Cap
-behaviour, half-up rounding, the price/discount reconciliation, tie-break
-determinism and the feed-merge conflict rules were covered by unit tests that
-are not in this build. If the ranking logic in `deals/ranking.py` changes,
-that is where the risk now sits.
+I verified both layers catch real regressions rather than just passing:
+reversing the sort to rank by headline discount instead of effective price
+fails `test_headline_discount_does_not_decide_the_winner`, the equivalent
+`pytest` case, and `smoke.py`.
 
 ---
 
